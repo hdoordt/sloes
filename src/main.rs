@@ -4,9 +4,13 @@ mod error;
 mod proxy;
 mod storage;
 
+use sluus_ui;
+
 #[tokio::main]
 pub async fn main() {
     println!("Hello!");
+
+    sluus_ui::run_it();
     // TODO
     // Enable logging
     // load config
