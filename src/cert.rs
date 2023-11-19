@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::Result;
 
-use crate::config::Config;
+use crate::storage::config::Config;
 
 pub struct Certificate {
     // fields
