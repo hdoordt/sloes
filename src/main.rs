@@ -30,9 +30,13 @@ pub async fn main() {
 
     let project = ProjectStore::default();
     let project = Arc::new(project);
-    let proxy = Proxy::new(config, project, CertManager {});
+    let mut proxy = Proxy::new(
+        config.clone(),
+        project,
+        CertManager::generate(config.clone()).await.unwrap(),
+    );
     proxy
-        .serve("127.0.0.1:9001".parse().unwrap())
+        .serve_http("127.0.0.1:9001".parse().unwrap())
         .await
         .unwrap();
 

@@ -1,4 +1,4 @@
-use super::{Store, Persistent};
+use super::Store;
 
 pub type ProjectStore = Store<Project, ()>;
 

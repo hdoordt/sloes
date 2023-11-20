@@ -1,12 +1,9 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::Result;
+use rcgen::{Certificate, CertificateParams, DistinguishedName, IsCa, KeyUsagePurpose};
 
 use crate::storage::config::{Config, ConfigStore};
-
-pub struct Certificate {
-    // fields
-}
 
 pub struct CertManager {
     root: Certificate,
@@ -18,8 +15,19 @@ impl CertManager {
         todo!()
     }
 
-    pub async fn generate(conf: Arc<ConfigStore>) -> Result<Self> {
-        todo!()
+    pub async fn generate(_conf: Arc<ConfigStore>) -> Result<Self> {
+        let mut params = CertificateParams::new(vec![]);
+        params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+        params.key_usages = vec![
+            KeyUsagePurpose::DigitalSignature,
+            KeyUsagePurpose::DataEncipherment,
+            KeyUsagePurpose::KeyCertSign,
+        ];
+
+        Ok(Self {
+            root: Certificate::from_params(params)?,
+            domain_certs: HashMap::new(),
+        })
     }
 
     pub async fn load_or_generate(conf: Arc<ConfigStore>) -> Result<Self> {
@@ -30,8 +38,17 @@ impl CertManager {
         Self::generate(conf).await
     }
 
-    pub async fn store(&self, path: impl AsRef<Path>) -> Result<()> {
-        todo!()
+    pub async fn store(&self, conf: Arc<ConfigStore>) -> Result<()> {
+        let cert = self.root.serialize_pem()?;
+        let key = self.root.serialize_private_key_pem();
+        let Config {
+            root_cert_path,
+            root_key_path,
+            ..
+        } = conf.data();
+        tokio::fs::write(root_cert_path, cert).await?;
+        tokio::fs::write(root_key_path, key).await?;
+        Ok(())
     }
 
     pub fn generate_for_domain(&mut self, domain: &str) -> Result<Certificate> {

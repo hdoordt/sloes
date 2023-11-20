@@ -47,12 +47,19 @@ impl<T: Persistent + Default + Sized + Send + Sync> Store<T, T::Handle> {
         })
     }
 
-    pub async fn update<F: Fn(&mut T)>(&mut self, f: F) {
+    pub async fn update<F: Fn(&mut T)>(&mut self, f: F) -> Result<()> {
         f(&mut self.data);
-        self.data.store(&self.handle).await;
+        self.data.store(&self.handle).await?;
         // We keep a copy of the corresponding receiver in Self,
         // thus this won't ever fail
         self.update_tx.send(()).unwrap();
+        Ok(())
+    }
+}
+
+impl<T, H> Store<T, H> {
+    pub fn data(&self) -> &T {
+        &self.data
     }
 }
 
@@ -65,7 +72,7 @@ impl<T, H> Store<T, H> {
 }
 
 #[async_trait]
-trait Persistent: Sized + Send + Sync {
+pub trait Persistent: Sized + Send + Sync {
     type Handle;
 
     async fn load(handle: &Self::Handle) -> Result<Self>;
