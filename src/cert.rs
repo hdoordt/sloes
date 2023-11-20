@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, fmt, path::Path, sync::Arc};
 
 use anyhow::Result;
 use rcgen::{
@@ -12,6 +12,15 @@ use crate::storage::config::{Config, ConfigStore};
 pub struct CertManager {
     root: RcgenCertificate,
     domain_certs: HashMap<url::Host, Certificate>,
+}
+
+impl fmt::Debug for CertManager {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CertManager")
+            .field("root", &"<...>")
+            .field("domain_certs", &"<Certs>")
+            .finish()
+    }
 }
 
 impl CertManager {

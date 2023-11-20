@@ -35,12 +35,12 @@ pub async fn main() {
         project,
         CertManager::load_or_generate(config.clone()).await.unwrap(),
     );
-    proxy
-        .serve_http("127.0.0.1:9001".parse().unwrap())
-        .await
-        .unwrap()
+    let http = proxy
+        .serve_http("127.0.0.1:9000".parse().unwrap())
         .await
         .unwrap();
+
+    let https = proxy.serve_https("127.0.0.1:9001".parse().unwrap()).await.unwrap();
 
     // sluus_ui::run_it();
     // TODO
