@@ -1,12 +1,15 @@
 use anyhow::{bail, Result};
-use futures::{Future, TryFutureExt, FutureExt};
+use futures::{Future, FutureExt, TryFutureExt};
 use hyper::{
     body::Bytes, client::conn::http1::SendRequest, server::conn::http1, service::service_fn,
     Request, Response,
 };
 use hyper_util::rt::TokioIo;
 use std::{net::SocketAddr, sync::Arc};
-use tokio::{net::{TcpListener, TcpStream}, task::{JoinHandle, JoinError}};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    task::{JoinError, JoinHandle},
+};
 use tracing::{error, info};
 
 use http_body_util::Full;
@@ -42,7 +45,10 @@ impl Proxy {
         Ok(())
     }
 
-    pub async fn serve_http(&mut self, addr: SocketAddr) -> Result<impl Future<Output = Result<Result<()>, JoinError>>> {
+    pub async fn serve_http(
+        &mut self,
+        addr: SocketAddr,
+    ) -> Result<impl Future<Output = Result<()>>> {
         let proxy = |req: Request<hyper::body::Incoming>| async move {
             info!("Got request: {req:?}. URI: {:?}", req.uri());
 
@@ -83,9 +89,12 @@ impl Proxy {
                     }
                 });
             }
-            
         });
-        
-        Ok(task)
+
+        Ok(task.map(|r: Result<Result<()>, JoinError>| match r {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => Err(e.into()),
+            Err(e) => Err(e.into()),
+        }))
     }
 }

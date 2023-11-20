@@ -38,6 +38,8 @@ pub async fn main() {
     proxy
         .serve_http("127.0.0.1:9001".parse().unwrap())
         .await
+        .unwrap()
+        .await
         .unwrap();
 
     // sluus_ui::run_it();
