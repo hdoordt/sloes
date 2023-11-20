@@ -19,7 +19,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             project_path: "".into(),
-            root_cert_path: "../ca.pem".into(),
+            root_cert_path: "ca.pem".into(),
             root_key_path: "ca.key".into(),
         }
         // Storage path default is in config folder, Root cert path is somewhere tbd?

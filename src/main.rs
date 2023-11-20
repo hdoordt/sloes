@@ -33,7 +33,7 @@ pub async fn main() {
     let mut proxy = Proxy::new(
         config.clone(),
         project,
-        CertManager::generate(config.clone()).await.unwrap(),
+        CertManager::load_or_generate(config.clone()).await.unwrap(),
     );
     proxy
         .serve_http("127.0.0.1:9001".parse().unwrap())
