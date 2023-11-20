@@ -1,20 +1,26 @@
-use iced::executor;
+use iced::widget::scrollable::RelativeOffset;
+use iced::widget::{scrollable, Column, Container, Row};
+use iced::{executor, Length};
 use iced::{Application, Command, Element, Theme};
 
-use crate::components::header;
+use crate::components::{
+    header::header,
+    proxy_page::{proxy_page, PROXY_REQUESTS_SCROLLABLE_ID},
+};
 use crate::types::message::Message;
 use crate::types::pages::Page;
 
-pub struct SluusUi {
-    active_page: Page,
+// TODO refactor this state stuff
+#[derive(Default)]
+pub struct ProxyState {
+    pub selected_request: Option<u8>, // TODO this should probably be a type
+    pub current_scroll_offset: scrollable::RelativeOffset,
 }
 
-impl Default for SluusUi {
-    fn default() -> Self {
-        Self {
-            active_page: Page::Proxy,
-        }
-    }
+#[derive(Default)]
+pub struct SluusUi {
+    active_page: Page,
+    proxy_state: ProxyState,
 }
 
 impl Application for SluusUi {
@@ -31,18 +37,38 @@ impl Application for SluusUi {
         String::from("Sluus - you decide to drop or forward")
     }
 
+    // TODO refactor message naming
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::SwitchTab(tab) => self.active_page = tab,
+            Message::SwitchTab(tab) => {
+                self.active_page = tab;
+                return scrollable::snap_to(
+                    PROXY_REQUESTS_SCROLLABLE_ID.clone(),
+                    self.proxy_state.current_scroll_offset,
+                );
+            }
+            Message::SelectRequest(req) => self.proxy_state.selected_request = Some(req),
+            Message::ScrollProxyRequests(offset) => self.proxy_state.current_scroll_offset = offset,
         }
         Command::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
-        // header -> proxy, brute, replay, scan?, discover?
-        // body -> depends on tab selected in header
-        //
-        // ...
-        header(&self.active_page).into()
+        let header = header(&self.active_page);
+        let mut body = Row::new();
+        body = match self.active_page {
+            Page::Proxy => proxy_page(&self.proxy_state),
+            Page::Brute => body,
+            Page::Replay => body,
+            Page::Scan => body,
+            Page::Discover => body,
+        };
+
+        Column::new()
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .push(header)
+            .push(body)
+            .into()
     }
 }

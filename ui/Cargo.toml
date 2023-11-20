@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 enum-iterator = "1.4.1"
 iced = "0.10.0"
+lazy_static = "1.4.0"
 strum = { version = "0.25", features = ["derive"] }

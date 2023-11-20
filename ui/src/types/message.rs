@@ -1,7 +1,10 @@
+use iced::widget::scrollable;
+
 use super::pages::Page;
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    // Switch from
-    SwitchTab(Page), // TODO make types for pages
+    SwitchTab(Page),
+    SelectRequest(u8), // TODO make this a type?
+    ScrollProxyRequests(scrollable::RelativeOffset),
 }

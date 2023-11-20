@@ -1,3 +1,2 @@
-mod header;
-
-pub use header::header;
+pub mod header;
+pub mod proxy_page;
