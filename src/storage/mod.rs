@@ -9,11 +9,24 @@ use tokio_stream::wrappers::{errors::BroadcastStreamRecvError, BroadcastStream};
 pub mod config;
 pub mod project;
 
+#[derive(Debug)]
 pub struct Store<T, H> {
     data: T,
     handle: H,
     update_tx: broadcast::Sender<()>,
     update_rx: broadcast::Receiver<()>,
+}
+
+impl<T: Default, H: Default> Default for Store<T, H> {
+    fn default() -> Self {
+        let (update_tx, update_rx) = broadcast::channel(64);
+        Self {
+            data: Default::default(),
+            handle: Default::default(),
+            update_tx,
+            update_rx,
+        }
+    }
 }
 
 impl<T: Persistent + Default + Sized + Send + Sync> Store<T, T::Handle> {

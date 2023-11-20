@@ -1,8 +1,8 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::Result;
 
-use crate::storage::config::Config;
+use crate::storage::config::{Config, ConfigStore};
 
 pub struct Certificate {
     // fields
@@ -14,16 +14,16 @@ pub struct CertManager {
 }
 
 impl CertManager {
-    pub async fn load_from_conf(conf: &Config) -> Result<Option<Self>> {
+    pub async fn load_from_conf(conf: Arc<ConfigStore>) -> Result<Option<Self>> {
         todo!()
     }
 
-    pub async fn generate(conf: &Config) -> Result<Self> {
+    pub async fn generate(conf: Arc<ConfigStore>) -> Result<Self> {
         todo!()
     }
 
-    pub async fn load_or_generate(conf: &Config) -> Result<Self> {
-        if let Some(cert_man) = Self::load_from_conf(conf).await? {
+    pub async fn load_or_generate(conf: Arc<ConfigStore>) -> Result<Self> {
+        if let Some(cert_man) = Self::load_from_conf(conf.clone()).await? {
             return Ok(cert_man);
         }
 
@@ -46,11 +46,11 @@ impl CertManager {
         if !Self::is_domain(domain) {
             return Err(crate::error::Error::NotADomain)?;
         }
-
-        Ok(self
-            .domain_certs
-            .entry(domain.to_owned())
-            .or_insert_with(|| Self::do_generate_for_domain(domain)))
+        todo!()
+        // Ok(self
+        //     .domain_certs
+        //     .entry(domain.to_owned())
+        //     .or_insert_with(|| Self::do_generate_for_domain(domain)))
     }
 
     fn do_generate_for_domain(domain: &str) -> Certificate {

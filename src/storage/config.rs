@@ -7,16 +7,17 @@ use super::{Persistent, Store};
 
 pub type ConfigStore = Store<Config, PathBuf>;
 
+#[derive(Default, Debug)]
 pub struct Config {
     project_path: PathBuf,
     root_cert_path: PathBuf,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        todo!("Storage path default is in config folder, Root cert path is somewhere tbd?");
-    }
-}
+// impl Default for Config {
+//     fn default() -> Self {
+//         todo!("Storage path default is in config folder, Root cert path is somewhere tbd?");
+//     }
+// }
 
 #[async_trait]
 impl Persistent for Config {
