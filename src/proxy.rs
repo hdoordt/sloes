@@ -8,7 +8,10 @@ use hyper::{
     Request, Response,
 };
 use hyper_rustls::{ConfigBuilderExt, TlsAcceptor};
-use hyper_util::rt::TokioIo;
+use hyper_util::{
+    client::legacy::Client,
+    rt::{TokioExecutor, TokioIo},
+};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -59,16 +62,20 @@ impl Proxy {
             .enable_http1()
             .build();
 
+        let client = Client::builder(TokioExecutor::new()).build(https);
+        let proxy = {
+            let client = &client;
+            move |req: Request<body::Incoming>| async move {
+                info!("Got request: {req:?}. URI: {:?}", req.uri());
 
-        
-        let proxy = |req: Request<body::Incoming>| async move {
-            info!("Got request: {req:?}. URI: {:?}", req.uri());
+                let host = req.uri().host().unwrap_or("127.0.0.1");
+                let port = req.uri().port_u16().unwrap_or(443);
 
-            // let (mut sender, conn) = hyper::client::conn::http1::handshake(https).await?;
+                let res = client.request(req).await?;
 
-            let host = req.uri().host().unwrap_or("127.0.0.1");
-            let port = req.uri().port_u16().unwrap_or(443);
-            Ok::<Response<Full<Bytes>>, anyhow::Error>(todo!())
+                info!("Got response: {res:?}");
+                Ok::<_, anyhow::Error>(res)
+            }
         };
 
         let (cert_chain, key_der) = todo!();
