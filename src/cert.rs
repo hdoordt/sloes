@@ -6,12 +6,14 @@ use rcgen::{
     KeyUsagePurpose,
 };
 use rustls::Certificate;
+use tokio::fs;
 
 use crate::storage::config::{Config, ConfigStore};
 
+#[non_exhaustive]
 pub struct CertManager {
-    root: RcgenCertificate,
-    domain_certs: HashMap<url::Host, Certificate>,
+    pub root: RcgenCertificate,
+    pub domain_certs: HashMap<url::Host, Certificate>,
 }
 
 impl fmt::Debug for CertManager {
@@ -30,8 +32,17 @@ impl CertManager {
             root_key_path,
             ..
         } = conf.data();
-        let cert = tokio::fs::read_to_string(root_cert_path).await?;
-        let key = tokio::fs::read_to_string(root_key_path).await?;
+
+        let (cert_exists, key_exists) = futures::join!(
+            fs::try_exists(root_cert_path),
+            fs::try_exists(root_key_path)
+        );
+        if !cert_exists? || !key_exists? {
+            return Ok(None);
+        }
+
+        let cert = fs::read_to_string(root_cert_path).await?;
+        let key = fs::read_to_string(root_key_path).await?;
         let params = CertificateParams::from_ca_cert_pem(&cert, KeyPair::from_pem(&key)?)?;
 
         Ok(Some(Self {
@@ -69,8 +80,8 @@ impl CertManager {
             root_key_path,
             ..
         } = conf.data();
-        tokio::fs::write(root_cert_path, cert).await?;
-        tokio::fs::write(root_key_path, key).await?;
+        fs::write(root_cert_path, cert).await?;
+        fs::write(root_key_path, key).await?;
         Ok(())
     }
 

@@ -30,7 +30,7 @@ tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 url = "2.4.1"
 
-sluus_ui.path = "ui"
+# sluus_ui.path = "ui"
 
 [patch.crates-io]
 # Relevant PR: https://github.com/rustls/hyper-rustls/pull/232. We need this.

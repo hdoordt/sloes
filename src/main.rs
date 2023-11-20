@@ -5,7 +5,7 @@ mod storage;
 
 use std::sync::Arc;
 
-use sluus_ui;
+// use sluus_ui;
 use tracing::{info, level_filters::LevelFilter, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
@@ -40,7 +40,14 @@ pub async fn main() {
         .await
         .unwrap();
 
-    let https = proxy.serve_https("127.0.0.1:9001".parse().unwrap()).await.unwrap();
+    let https = proxy
+        .serve_https("127.0.0.1:9001".parse().unwrap())
+        .await
+        .unwrap();
+
+    let (http, https) = futures::join!(http, https);
+    http.unwrap();
+    https.unwrap();
 
     // sluus_ui::run_it();
     // TODO

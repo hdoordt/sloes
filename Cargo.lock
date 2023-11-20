@@ -2522,7 +2522,6 @@ dependencies = [
  "hyper-util",
  "rcgen",
  "rustls",
- "sluus_ui",
  "tokio",
  "tokio-stream",
  "tracing",

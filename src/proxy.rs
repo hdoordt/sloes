@@ -62,14 +62,12 @@ impl Proxy {
             .enable_http1()
             .build();
 
-        let client = Client::builder(TokioExecutor::new()).build(https);
+        /// Uhh not great but who cares tho
+        let client: &'static _ =
+            Box::leak(Box::new(Client::builder(TokioExecutor::new()).build(https)));
         let proxy = {
-            let client = &client;
             move |req: Request<body::Incoming>| async move {
                 info!("Got request: {req:?}. URI: {:?}", req.uri());
-
-                let host = req.uri().host().unwrap_or("127.0.0.1");
-                let port = req.uri().port_u16().unwrap_or(443);
 
                 let res = client.request(req).await?;
 
@@ -78,7 +76,9 @@ impl Proxy {
             }
         };
 
-        let (cert_chain, key_der) = todo!();
+        let cert_chain = vec![rustls::Certificate(self.cert_man.root.serialize_der()?)];
+        let key_der = rustls::PrivateKey(self.cert_man.root.get_key_pair().serialize_der());
+
         let listener = TcpListener::bind(addr).await?;
 
         let mut acceptor = TlsAcceptor::builder()
