@@ -1,16 +1,20 @@
 use anyhow::{bail, Result};
 use futures::{Future, FutureExt, TryFutureExt};
 use hyper::{
-    body::Bytes, client::conn::http1::SendRequest, server::conn::http1, service::service_fn,
+    body::{self, Bytes},
+    client::{self, conn::http1::SendRequest},
+    server::conn::http1,
+    service::service_fn,
     Request, Response,
 };
+use hyper_rustls::{ConfigBuilderExt, TlsAcceptor};
 use hyper_util::rt::TokioIo;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
     net::{TcpListener, TcpStream},
     task::{JoinError, JoinHandle},
 };
-use tracing::{error, info};
+use tracing::{error, info, instrument, span};
 
 use http_body_util::Full;
 
@@ -20,6 +24,7 @@ use crate::{
     storage::{config::ConfigStore, project::ProjectStore},
 };
 
+#[derive(Debug)]
 pub struct Proxy {
     config: Arc<ConfigStore>,
     project: Arc<ProjectStore>,
@@ -39,17 +44,66 @@ impl Proxy {
         }
     }
 
-    pub async fn serve_https(&mut self, addr: SocketAddr) -> Result<()> {
-        let proxy = |req: Request<hyper::body::Incoming>| async move { Ok::<_, anyhow::Error>(()) };
+    #[instrument]
+    pub async fn serve_https(
+        &mut self,
+        addr: SocketAddr,
+    ) -> Result<impl Future<Output = Result<()>>> {
+        let tls = rustls::ClientConfig::builder()
+            .with_safe_defaults()
+            .with_native_roots()?
+            .with_no_client_auth();
+        let https = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_tls_config(tls)
+            .https_only()
+            .enable_http1()
+            .build();
 
-        Ok(())
+
+        
+        let proxy = |req: Request<body::Incoming>| async move {
+            info!("Got request: {req:?}. URI: {:?}", req.uri());
+
+            // let (mut sender, conn) = hyper::client::conn::http1::handshake(https).await?;
+
+            let host = req.uri().host().unwrap_or("127.0.0.1");
+            let port = req.uri().port_u16().unwrap_or(443);
+            Ok::<Response<Full<Bytes>>, anyhow::Error>(todo!())
+        };
+
+        let (cert_chain, key_der) = todo!();
+        let listener = TcpListener::bind(addr).await?;
+
+        let mut acceptor = TlsAcceptor::builder()
+            .with_single_cert(cert_chain, key_der)?
+            .with_http11_alpn()
+            .with_incoming(listener);
+
+        let proxy = service_fn(proxy);
+
+        let task: JoinHandle<Result<()>> = tokio::spawn(async move {
+            loop {
+                let (stream, _) = acceptor.accept().await?;
+                tokio::spawn(async move {
+                    if let Err(e) = http1::Builder::new().serve_connection(stream, proxy).await {
+                        error!("Error handling connection: {}", e);
+                    }
+                });
+            }
+        });
+        Ok(task.map(|r: Result<Result<()>, JoinError>| match r {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => Err(e.into()),
+            Err(e) => Err(e.into()),
+        }))
     }
 
+    #[instrument]
     pub async fn serve_http(
         &mut self,
         addr: SocketAddr,
     ) -> Result<impl Future<Output = Result<()>>> {
-        let proxy = |req: Request<hyper::body::Incoming>| async move {
+        let proxy = |req: Request<body::Incoming>| async move {
             info!("Got request: {req:?}. URI: {:?}", req.uri());
 
             let host = req.uri().host().unwrap_or("127.0.0.1");

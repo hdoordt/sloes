@@ -30,3 +30,8 @@ sluus_ui.path = "ui"
 http-body-util = "0.1.0"
 rcgen = "0.11.3"
 hyper-rustls = "0.24.2"
+rustls = "0.21.9"
+
+[patch.crates-io]
+# Relevant PR: https://github.com/rustls/hyper-rustls/pull/232. We need this.
+hyper-rustls = { git = "https://github.com/Gelbpunkt/hyper-rustls.git", branch = "hyper-v1" }
