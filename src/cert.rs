@@ -3,10 +3,11 @@ use std::{collections::HashMap, fmt, path::Path, sync::Arc};
 use anyhow::Result;
 use rcgen::{
     Certificate as RcgenCertificate, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair,
-    KeyUsagePurpose,
+    KeyUsagePurpose, SignatureAlgorithm,
 };
-use rustls::Certificate;
+use rustls::{server::ResolvesServerCert, Certificate, ServerConfig};
 use tokio::fs;
+use tracing::error;
 
 use crate::storage::config::{Config, ConfigStore};
 
@@ -54,7 +55,7 @@ impl CertManager {
     // generate root certificate
     pub async fn generate(_conf: Arc<ConfigStore>) -> Result<Self> {
         let mut params = CertificateParams::new(vec![]);
-        params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
+        params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
 
         Ok(Self {
             root: RcgenCertificate::from_params(params)?,
@@ -107,7 +108,7 @@ impl CertManager {
     }
 
     fn do_generate_for_domain(&self, domain: &url::Host) -> Result<Certificate> {
-        assert!(matches!(domain, url::Host::Domain(_)));
+        assert!(Self::is_domain(domain));
 
         let mut params = CertificateParams::new(vec![]);
         params.is_ca = IsCa::NoCa;
@@ -122,5 +123,23 @@ impl CertManager {
 
     fn is_domain(domain: &url::Host) -> bool {
         matches!(domain, url::Host::Domain(_))
+    }
+
+    pub fn server_config(self: Arc<Self>) -> ServerConfig {
+        ServerConfig::builder()
+            .with_safe_defaults()
+            .with_no_client_auth()
+            .with_cert_resolver(dbg!(self))
+    }
+}
+
+impl ResolvesServerCert for CertManager {
+    fn resolve(
+        &self,
+        client_hello: rustls::server::ClientHello,
+    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        let server_name = client_hello.server_name();
+        error!("{server_name:?}");
+        None
     }
 }

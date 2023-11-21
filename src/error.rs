@@ -2,7 +2,7 @@ use std::{error, fmt};
 
 #[derive(Debug)]
 pub enum Error {
-    NotADomain
+    NotADomain,
 }
 
 impl fmt::Display for Error {

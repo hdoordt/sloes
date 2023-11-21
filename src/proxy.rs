@@ -12,6 +12,7 @@ use hyper_util::{
     client::legacy::Client,
     rt::{TokioExecutor, TokioIo},
 };
+use rustls::{server::ResolvesServerCert, ServerConfig};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -31,14 +32,14 @@ use crate::{
 pub struct Proxy {
     config: Arc<ConfigStore>,
     project: Arc<ProjectStore>,
-    cert_man: CertManager,
+    cert_man: Arc<CertManager>,
 }
 
 impl Proxy {
     pub fn new(
         config: Arc<ConfigStore>,
         project: Arc<ProjectStore>,
-        cert_man: CertManager,
+        cert_man: Arc<CertManager>,
     ) -> Self {
         Self {
             config,
@@ -52,19 +53,20 @@ impl Proxy {
         &mut self,
         addr: SocketAddr,
     ) -> Result<impl Future<Output = Result<()>>> {
-        let tls = rustls::ClientConfig::builder()
+        let client_tls = rustls::ClientConfig::builder()
             .with_safe_defaults()
             .with_native_roots()?
             .with_no_client_auth();
-        let https = hyper_rustls::HttpsConnectorBuilder::new()
-            .with_tls_config(tls)
+        let client_https = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_tls_config(client_tls)
             .https_only()
             .enable_http1()
             .build();
 
         /// Uhh not great but who cares tho
-        let client: &'static _ =
-            Box::leak(Box::new(Client::builder(TokioExecutor::new()).build(https)));
+        let client: &'static _ = Box::leak(Box::new(
+            Client::builder(TokioExecutor::new()).build(client_https),
+        ));
         let proxy = {
             move |req: Request<body::Incoming>| async move {
                 info!("Got request: {req:?}. URI: {:?}", req.uri());
@@ -76,13 +78,10 @@ impl Proxy {
             }
         };
 
-        let cert_chain = vec![rustls::Certificate(self.cert_man.root.serialize_der()?)];
-        let key_der = rustls::PrivateKey(self.cert_man.root.get_key_pair().serialize_der());
-
         let listener = TcpListener::bind(addr).await?;
 
         let mut acceptor = TlsAcceptor::builder()
-            .with_single_cert(cert_chain, key_der)?
+            .with_tls_config(CertManager::server_config(self.cert_man.clone()))
             .with_http11_alpn()
             .with_incoming(listener);
 
