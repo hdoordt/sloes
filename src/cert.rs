@@ -1,10 +1,7 @@
-use std::{collections::HashMap, fmt, path::Path, sync::Arc};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use anyhow::Result;
-use rcgen::{
-    Certificate as RcgenCertificate, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair,
-    KeyUsagePurpose, SignatureAlgorithm,
-};
+use rcgen::{Certificate as RcgenCertificate, CertificateParams, DnType, IsCa, KeyPair};
 use rustls::{server::ResolvesServerCert, Certificate, ServerConfig};
 use tokio::fs;
 use tracing::error;
@@ -129,7 +126,7 @@ impl CertManager {
         ServerConfig::builder()
             .with_safe_defaults()
             .with_no_client_auth()
-            .with_cert_resolver(dbg!(self))
+            .with_cert_resolver(self)
     }
 }
 

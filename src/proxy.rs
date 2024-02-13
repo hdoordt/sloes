@@ -1,11 +1,12 @@
 use anyhow::{bail, Result};
 use futures::{Future, FutureExt, TryFutureExt};
+use http::uri::Scheme;
 use hyper::{
     body::{self, Bytes},
     client::{self, conn::http1::SendRequest},
-    server::conn::http1,
+    server::conn::{http1, http2},
     service::service_fn,
-    Request, Response,
+    Method, Request, Response,
 };
 use hyper_rustls::{ConfigBuilderExt, TlsAcceptor};
 use hyper_util::{
@@ -13,7 +14,7 @@ use hyper_util::{
     rt::{TokioExecutor, TokioIo},
 };
 use rustls::{server::ResolvesServerCert, ServerConfig};
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{
     net::{TcpListener, TcpStream},
     task::{JoinError, JoinHandle},
@@ -69,12 +70,19 @@ impl Proxy {
         ));
         let proxy = {
             move |req: Request<body::Incoming>| async move {
+                panic!();
                 info!("Got request: {req:?}. URI: {:?}", req.uri());
+                if req.method() == Method::CONNECT {
+                    match hyper::upgrade::on(req).await {
+                        Ok(upgraded) => todo!(),
+                        Err(e) => bail!(e),
+                    }
+                } else {
+                    let res = client.request(req).await?;
 
-                let res = client.request(req).await?;
-
-                info!("Got response: {res:?}");
-                Ok::<_, anyhow::Error>(res)
+                    info!("Got response: {res:?}");
+                    Ok::<_, anyhow::Error>(res)
+                }
             }
         };
 
@@ -89,10 +97,13 @@ impl Proxy {
 
         let task: JoinHandle<Result<()>> = tokio::spawn(async move {
             loop {
-                let (stream, _) = acceptor.accept().await?;
+                let (stream, remote) = acceptor.accept().await?;
                 tokio::spawn(async move {
-                    if let Err(e) = http1::Builder::new().serve_connection(stream, proxy).await {
-                        error!("Error handling connection: {}", e);
+                    info!("Connection from {remote}!");
+                    match http1::Builder::new().serve_connection(stream, proxy).await {
+                        Err(e) => error!("Error handling connection: {}", e),
+
+                        Ok(()) => info!("Done!"),
                     }
                 });
             }
@@ -110,7 +121,27 @@ impl Proxy {
         addr: SocketAddr,
     ) -> Result<impl Future<Output = Result<()>>> {
         let proxy = |req: Request<body::Incoming>| async move {
-            info!("Got request: {req:?}. URI: {:?}", req.uri());
+            info!(
+                "Got request: {req:?}. URI: {:?}, method: {:?}",
+                req.uri(),
+                req.method()
+            );
+
+            if Some(&Scheme::HTTPS) == req.uri().scheme() {
+                
+                match hyper::upgrade::on(req).await {
+                    Ok(upgraded) => {
+                        info!("upgreet: {upgraded:?}");
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        panic!("sdflsf");
+                    }
+                    Err(e) => {
+                        error!("Error upgrading: {e}");
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        bail!("poep")
+                    }
+                }
+            }
 
             let host = req.uri().host().unwrap_or("127.0.0.1");
             let port = req.uri().port_u16().unwrap_or(80);
@@ -145,8 +176,14 @@ impl Proxy {
 
                 tokio::spawn(async move {
                     if let Err(e) = http1::Builder::new().serve_connection(io, proxy).await {
-                        error!("Error handling connection: {}", e);
+                        error!("Error handling connection: {:?}", e);
                     }
+                    // if let Err(e) = http2::Builder::new(TokioExecutor::new())
+                    //     .serve_connection(io, proxy)
+                    //     .await
+                    // {
+                    //     error!("Error handling connection: {}", e);
+                    // }
                 });
             }
         });
@@ -157,4 +194,6 @@ impl Proxy {
             Err(e) => Err(e.into()),
         }))
     }
+
+    fn proxy() -
 }

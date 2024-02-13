@@ -29,6 +29,7 @@ tokio-stream = { version = "0.1.14", default-features = false, features = [
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 url = "2.4.1"
+http = "1.0.0"
 
 # sluus_ui.path = "ui"
 
